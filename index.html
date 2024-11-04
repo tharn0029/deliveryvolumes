@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- Previous head and style sections remain exactly the same -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Volume Analysis Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
     <style>
-        /* Previous styles remain unchanged */
+        /* All previous styles remain exactly the same */
         body {
             font-family: Arial, sans-serif;
             max-width: 1200px;
@@ -302,8 +303,8 @@
                     };
                 }).filter(item => item !== null); // Remove any null entries
 
-                // Sort by date in ascending order
-                const sortedData = parsedData.sort((a, b) => a.timestamp - b.timestamp);
+                // Sort by date in descending order
+                const sortedData = parsedData.sort((a, b) => b.timestamp - a.timestamp);
                 
                 // Calculate moving average
                 const maValues = calculateMA(sortedData, maWindow);

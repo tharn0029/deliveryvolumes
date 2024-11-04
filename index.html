@@ -6,6 +6,7 @@
     <title>Volume Analysis Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
     <style>
+        /* Previous styles remain unchanged */
         body {
             font-family: Arial, sans-serif;
             max-width: 1200px;
@@ -154,7 +155,6 @@
     <div class="container">
         <h1>Volume Analysis Dashboard</h1>
 
-        <!-- Top input boxes -->
         <div class="top-inputs">
             <div class="input-box">
                 <h3>Box 1</h3>
@@ -177,11 +177,10 @@
         </div>
         
         <div class="input-group">
-            <label for="data-input">Paste your data (one entry per line):</label>
+            <label for="data-input">Paste your data:</label>
             <textarea 
                 id="data-input" 
                 placeholder="Format: DD-MMM-YYYY =XX,XX,XXX"
-                onpaste="handlePaste(event)"
             ></textarea>
         </div>
         
@@ -216,20 +215,6 @@
             display.textContent = input.value;
         }
 
-        function handlePaste(e) {
-            e.preventDefault();
-            const clipboardData = e.clipboardData || window.clipboardData;
-            const pastedData = clipboardData.getData('text');
-            
-            // Replace literal "\n" with actual newlines and clean up the text
-            const formattedData = pastedData
-                .replace(/\\n/g, '\n')  // Replace \n with actual newlines
-                .replace(/\n+/g, '\n')  // Replace multiple newlines with single newlines
-                .trim();                // Remove leading/trailing whitespace
-            
-            document.getElementById('data-input').value = formattedData;
-        }
-
         function parseDate(dateStr) {
             try {
                 const [day, month, year] = dateStr.split('-');
@@ -255,7 +240,6 @@
             const windowSize = parseInt(window);
             const result = new Array(data.length).fill(null);
             
-            // Calculate MA in descending order (newest to oldest)
             for (let i = 0; i < data.length; i++) {
                 if (i + windowSize > data.length) continue;
                 let sum = 0;
@@ -282,7 +266,7 @@
                 hideError();
                 
                 // Get input values
-                const rawData = document.getElementById('data-input').value.trim();
+                let rawData = document.getElementById('data-input').value.trim();
                 const maWindow = parseInt(document.getElementById('ma-window').value);
                 const showMA = document.getElementById('ma-toggle').checked;
 
@@ -294,22 +278,32 @@
                     throw new Error('Moving average window must be between 2 and 100');
                 }
 
+                // Handle literal \n in the input
+                rawData = rawData.replace(/\\n/g, '\n').trim();
+                
                 // Parse data
                 const lines = rawData.split('\n');
                 const parsedData = lines.map((line, index) => {
-                    const [dateStr, volumeStr] = line.trim().split('=');
-                    if (!dateStr || !volumeStr) {
+                    line = line.trim();
+                    if (!line) return null; // Skip empty lines
+                    
+                    const parts = line.split('=');
+                    if (parts.length !== 2) {
                         throw new Error(`Invalid data format at line ${index + 1}`);
                     }
+                    
+                    const dateStr = parts[0].trim();
+                    const volumeStr = parts[1].trim();
+                    
                     return {
-                        date: dateStr.trim(),
-                        volume: parseVolume(volumeStr.trim()),
-                        timestamp: parseDate(dateStr.trim()).getTime()
+                        date: dateStr,
+                        volume: parseVolume(volumeStr),
+                        timestamp: parseDate(dateStr).getTime()
                     };
-                });
+                }).filter(item => item !== null); // Remove any null entries
 
-                // Sort by date in descending order
-                const sortedData = parsedData.sort((a, b) => b.timestamp - a.timestamp);
+                // Sort by date in ascending order
+                const sortedData = parsedData.sort((a, b) => a.timestamp - b.timestamp);
                 
                 // Calculate moving average
                 const maValues = calculateMA(sortedData, maWindow);

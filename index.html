@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volume Analysis Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .top-inputs {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            gap: 20px;
+        }
+        .input-box {
+            flex: 1;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .input-box input {
+            width: calc(100% - 20px);
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .input-box button {
+            width: 100%;
+        }
+        .input-box .display {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            min-height: 20px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        input[type="number"] {
+            width: 100px;
+            padding: 5px;
+            margin-right: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid red;
+            border-radius: 4px;
+            display: none;
+        }
+        .chart-container {
+            margin-top: 20px;
+            height: 500px;
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Volume Analysis Dashboard</h1>
+
+        <!-- Top input boxes -->
+        <div class="top-inputs">
+            <div class="input-box">
+                <h3>Box 1</h3>
+                <input type="text" id="input1" placeholder="Enter value">
+                <button onclick="updateDisplay(1)">Submit</button>
+                <div id="display1" class="display"></div>
+            </div>
+            <div class="input-box">
+                <h3>Box 2</h3>
+                <input type="text" id="input2" placeholder="Enter value">
+                <button onclick="updateDisplay(2)">Submit</button>
+                <div id="display2" class="display"></div>
+            </div>
+            <div class="input-box">
+                <h3>Box 3</h3>
+                <input type="text" id="input3" placeholder="Enter value">
+                <button onclick="updateDisplay(3)">Submit</button>
+                <div id="display3" class="display"></div>
+            </div>
+        </div>
+        
+        <div class="input-group">
+            <label for="data-input">Paste your data (one entry per line):</label>
+            <textarea id="data-input" placeholder="06-Aug-2024 =4,05,474&#13;07-Aug-2024 =2,79,281"></textarea>
+        </div>
+        
+        <div class="controls">
+            <div class="input-group">
+                <label for="ma-window">Moving Average Window Size (2-100):</label>
+                <input type="number" id="ma-window" min="2" max="100" value="3">
+            </div>
+            <div class="toggle-container">
+                <label for="ma-toggle">Moving Average:</label>
+                <label class="switch">
+                    <input type="checkbox" id="ma-toggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <button onclick="analyzeData()">Analyze Data</button>
+        </div>
+
+        <div id="error-message" class="error"></div>
+        
+        <div class="chart-container">
+            <canvas id="volumeChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+
+        function updateDisplay(boxNumber) {
+            const input = document.getElementById(`input${boxNumber}`);
+            const display = document.getElementById(`display${boxNumber}`);
+            display.textContent = input.value;
+        }
+
+        function parseDate(dateStr) {
+            try {
+                const [day, month, year] = dateStr.split('-');
+                const monthMap = {
+                    'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+                    'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+                };
+                return new Date(year, monthMap[month], parseInt(day));
+            } catch (err) {
+                throw new Error(`Invalid date format: ${dateStr}`);
+            }
+        }
+
+        function parseVolume(volumeStr) {
+            try {
+                return parseInt(volumeStr.replace(/[,=]/g, ''));
+            } catch (err) {
+                throw new Error(`Invalid volume format: ${volumeStr}`);
+            }
+        }
+
+        function calculateMA(data, window) {
+            const windowSize = parseInt(window);
+            const result = new Array(data.length).fill(null);
+            
+            // Calculate MA in descending order (newest to oldest)
+            for (let i = 0; i < data.length; i++) {
+                if (i + windowSize > data.length) continue;
+                let sum = 0;
+                for (let j = 0; j < windowSize; j++) {
+                    sum += data[i + j].volume;
+                }
+                result[i] = Math.round(sum / windowSize);
+            }
+            return result;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error-message').style.display = 'none';
+        }
+
+        function analyzeData() {
+            try {
+                hideError();
+                
+                // Get input values
+                const rawData = document.getElementById('data-input').value.trim();
+                const maWindow = parseInt(document.getElementById('ma-window').value);
+                const showMA = document.getElementById('ma-toggle').checked;
+
+                if (!rawData) {
+                    throw new Error('Please enter some data');
+                }
+
+                if (isNaN(maWindow) || maWindow < 2 || maWindow > 100) {
+                    throw new Error('Moving average window must be between 2 and 100');
+                }
+
+                // Parse data
+                const lines = rawData.split('\n');
+                const parsedData = lines.map((line, index) => {
+                    const [dateStr, volumeStr] = line.trim().split('=');
+                    if (!dateStr || !volumeStr) {
+                        throw new Error(`Invalid data format at line ${index + 1}`);
+                    }
+                    return {
+                        date: dateStr.trim(),
+                        volume: parseVolume(volumeStr.trim()),
+                        timestamp: parseDate(dateStr.trim()).getTime()
+                    };
+                });
+
+                // Sort by date in descending order
+                const sortedData = parsedData.sort((a, b) => b.timestamp - a.timestamp);
+                
+                // Calculate moving average
+                const maValues = calculateMA(sortedData, maWindow);
+
+                // Prepare chart data
+                const labels = sortedData.map(d => d.date);
+                const volumes = sortedData.map(d => d.volume);
+
+                // Create datasets
+                const datasets = [
+                    {
+                        label: 'Volume',
+                        data: volumes,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1,
+                        order: 2
+                    }
+                ];
+
+                // Add MA dataset if toggle is on
+                if (showMA) {
+                    datasets.push({
+                        label: `${maWindow}-day Moving Average`,
+                        data: maValues,
+                        type: 'line',
+                        fill: false,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        tension: 0.4,
+                        order: 1
+                    });
+                }
+
+                // Create or update chart
+                if (chart) {
+                    chart.destroy();
+                }
+
+                const ctx = document.getElementById('volumeChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45
+                                }
+                            },
+                            y: {
+                                beginAtZero: true
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        }
+                    }
+                });
+
+            } catch (err) {
+                showError(err.message);
+                if (chart) {
+                    chart.destroy();
+                    chart = null;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

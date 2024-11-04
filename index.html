@@ -357,6 +357,20 @@
                 }
             }
         }
+                function handlePaste(e) {
+            e.preventDefault();
+            const clipboardData = e.clipboardData || window.clipboardData;
+            const pastedData = clipboardData.getData('text');
+            
+            // Replace literal "\n" with actual newlines and clean up the text
+            const formattedData = pastedData
+                .replace(/\\n/g, '\n')  // Replace \n with actual newlines
+                .replace(/\n+/g, '\n')  // Replace multiple newlines with single newlines
+                .trim();                // Remove leading/trailing whitespace
+            
+            document.getElementById('data-input').value = formattedData;
+        }
+
     </script>
 </body>
 </html>
